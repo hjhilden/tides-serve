@@ -1,11 +1,11 @@
 const port = 3000,
-   http = require("http"),                                              1
+   http = require("http"),
    httpStatus = require("http-status-codes"),
-   app = http.createServer((request, response) => {                     2
+   app = http.createServer((request, response) => {
      console.log("Received an incoming request!");
      response.writeHead(httpStatus.OK, {
        "Content-Type": "text/html"
-     });                                                                3
+     });
   
      let responseMessage = "<h1>Hello, Tides!</h1>";
      response.write(responseMessage);
@@ -13,6 +13,6 @@ const port = 3000,
      console.log(`Sent a response : ${responseMessage}`);
    });
   
- app.listen(port);                                                      4
+ app.listen(port);
  console.log(`The server has started and is listening on port number:
  ${port}`);
