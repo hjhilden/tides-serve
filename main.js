@@ -39,18 +39,18 @@ const port = process.env.PORT || 3000,
        "Content-Type": "text/html"
      });
   
-     let responseMessage = `<h1>Hello, let me tell you about the tides in ${name}! The water level is now ${ODWaterLevelValue} and the value is thus ${isOn}</h1>`;
+     let responseMessage = `<h1>Hello, let me tell you about the tides in ${name}! The water level is now ${ODWaterLevelValue} </h1>`;
     //  response.write(responseMessage);
     //  response.end();
      console.log(`Sent a response : ${responseMessage}`);
 
      switch(pathname){
-      case '/station_id_19':
-        response.end(isOn);
+      case '/s-id_19':
+        response.end(`${isOn}`);
       break;
       default:
          response.write(responseMessage);
-         response.end('default');
+         response.end(`s-id_19 value: ${isOn}`);
       break;
   }
 
