@@ -1,0 +1,24 @@
+{
+  "name": "tides-serve",
+  "version": "0.1.0",
+  "description": "Tides data test",
+  "engines": {
+    "node": "14.x"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"  },
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hjhilden/tides-serve"
+  },
+  "keywords": [
+    "node",
+    "tides",
+  ],
+  "license": "MIT"
+}
