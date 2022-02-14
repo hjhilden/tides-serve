@@ -1,5 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 
+const fetchUrl = require('fetch').fetchUrl;
 
 const name = 'Galway Port';
 const today = new Date();   
@@ -8,17 +9,33 @@ const today = new Date();
 
 	const url = `https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin&time%3E=${todayString}&station_id=%22Galway%20Port%22`
 let ODWaterLevelValue, isOn
-fetch(url)
-.then(res => res.json())
-.then(out =>
-			{
-				ODWaterLevelValue= 	out.table.rows.slice(-1)[0][3]
-		prevValue = out.table.rows.slice(-2)[0][3]
+// fetchUrl(url)
+// .then(res => res.json())
+// .then(out =>
+// 			{
+// 				ODWaterLevelValue= 	out.table.rows.slice(-1)[0][3]
+// 		prevValue = out.table.rows.slice(-2)[0][3]
 
+//     isOn = ODWaterLevelValue>0 ? 1 : 0	
+// })
+
+// .catch(err => err);
+
+
+fetchUrl(url, function(error, meta, body){
+    if(error){
+        return console.log('ERROR', error.message || error);
+    }
+    const res = body.json()
+
+    // console.log('META INFO');
+    // console.log(meta);
+
+    // console.log('BODY');
+    ODWaterLevelValue= 	res.table.rows.slice(-1)[0][3]
     isOn = ODWaterLevelValue>0 ? 1 : 0	
-})
-
-.catch(err => err);
+    // console.log(body.toString('utf-8'));
+});
 
 const port = 3000,
    http = require("http"),
