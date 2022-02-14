@@ -1,13 +1,34 @@
+const { StatusCodes } = require("http-status-codes");
+
+
+const name = 'Galway Port';
+const today = new Date();   
+	today.setMinutes(-15)
+	const todayString = today.toISOString()
+
+	const url = `https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin&time%3E=${todayString}&station_id=%22Galway%20Port%22`
+let ODWaterLevelValue, isOn
+fetch(url)
+.then(res => res.json())
+.then(out =>
+			{
+				ODWaterLevelValue= 	out.table.rows.slice(-1)[0][3]
+		prevValue = out.table.rows.slice(-2)[0][3]
+
+    isOn = ODWaterLevelValue>0 ? 1 : 0	
+})
+
+.catch(err => err);
+
 const port = 3000,
    http = require("http"),
-   httpStatus = require("http-status-codes"),
    app = http.createServer((request, response) => {
      console.log("Received an incoming request!");
-     response.writeHead(httpStatus.OK, {
+     response.writeHead(StatusCodes.OK, {
        "Content-Type": "text/html"
      });
   
-     let responseMessage = "<h1>Hello, Tides!</h1>";
+     let responseMessage = `<h1>Hello, Tides in ${name}! The water level is now ${ODWaterLevelValue} and the value is ${isOn}</h1>`;
      response.write(responseMessage);
      response.end();
      console.log(`Sent a response : ${responseMessage}`);
