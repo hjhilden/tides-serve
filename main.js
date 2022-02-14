@@ -26,25 +26,6 @@ fetch(url)
 .catch(err => err);
 
 
-// fetchUrl(url, function(error, meta, body){
-//     if(error){
-//         return console.log('ERROR', error.message || error);
-//     }
-//     // const res = body.json()
-//     const res = body
-//     // console.log('META INFO');
-//     // console.log(meta);
-//     if(res.table){
-//       ODWaterLevelValue= 	res.table.rows.slice(-1)[0][3]
-//       isOn = ODWaterLevelValue>0 ? 1 : 0	
-//     }
-//     console.log('BODY');
-
-//     console.log(body.toString('utf-8'));
-//     console.log(body);
-
-// });
-
 const port = 3000,
    http = require("http"),
    app = http.createServer((request, response) => {
@@ -53,7 +34,7 @@ const port = 3000,
        "Content-Type": "text/html"
      });
   
-     let responseMessage = `<h1>Hello, Tides in ${name}! The water level is now ${ODWaterLevelValue} and the value is ${isOn}</h1>`;
+     let responseMessage = `<h1>Hello, let me tell you about the tides in ${name}! The water level is now ${ODWaterLevelValue} and the value is thus ${isOn}</h1>`;
      response.write(responseMessage);
      response.end();
      console.log(`Sent a response : ${responseMessage}`);
