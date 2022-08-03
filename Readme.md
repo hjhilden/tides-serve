@@ -5,9 +5,9 @@ Read tides data from Irish tide gauge network on page load and analyze responses
 Extremely minimal app built on [this tutorial](https://freecontent.manning.com/building-a-simple-web-server-in-node-js/)
 
 
-Location name | station_id | datasourceid | url
--- | -- | -- | --
-"Spanish Arch" | "Galway" | 19 | s-id_19
-"Wexford Harbour" | "Wexford Harbour" | 25 | s-id_25
-"Balbriggan Lighthouse" | "Skerries Harbour" | 11 | s-id_11
-"Martello Tower, Blackrock Park, Dublin" | "Dublin Port" | 17 | s-id_17
+Location name | station_id | datasourceid | url | device count
+-- | -- | -- | -- | --
+Spanish Arch | Galway Port | 19 | s-id_19 | 3
+Wexford Harbour | Wexford Harbour | 25 | s-id_25 | 3
+Balbriggan Lighthouse | Skerries Harbour | 11 | s-id_11 | 1
+Martello Tower, Blackrock Park, Dublin | Dublin Port | 17 | s-id_17 | 1
