@@ -1,13 +1,14 @@
 const { StatusCodes } = require("http-status-codes");
 const fetch = require('node-fetch');
 
-//const station_ids = ['Galway Port', 'Wexford Harbour', 'Skerries Harbour', 'Dublin Port']
+// main data loading wrapped as function
+
+
+
 
 
 const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin%2CQC_Flag&time%3E='
-const today = new Date();
-today.setMinutes(-15)
-const todayString = today.toISOString()
+
 // response table 
 // 0: time, 1: station_id, 2: datasourceid, 3: water level, 4: QC flag 
 // 	const jsonUrl = `https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin%2CQC_Flag&time%3E=${todayString}&station_id=%22Galway%20Port%22`
@@ -24,33 +25,49 @@ const stationResponse = {
 
 const station_ids = Object.keys(stationResponse)
 
-station_ids.forEach(station_id => {
-  const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
-
-  let ODWaterLevel = 0
-
-  fetch(jsonUrl)
-    .then(res => res.json())
-    .then(out => {
-      console.log(station_id)
-      console.table(out.table.rows)
-      const row = out.table.rows.slice(-1)
-      // if QC flag === 9: missing value
-      if (row[0][4] === 9) {
-        stationResponse[station_id]['isOn'] = 1
-      } else {
-        ODWaterLevel = row[0][3]
-        stationResponse[station_id]['ODWaterLevel'] = ODWaterLevel
-        // prevValue = out.table.rows.slice(-2)[0][3]
-        stationResponse[station_id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
-      }
-
-    })
-    .catch(err => err)
-})
-
+function loadData() {
+  const today = new Date();
+  today.setMinutes(-15)
+  const todayString = today.toISOString()
+  
+  station_ids.forEach(station_id => {
+    const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
+  
+    let ODWaterLevel = 0
+    console.log(todayString)
+    fetch(jsonUrl)
+      .then(res => res.json())
+      .then(out => {
+        console.log(station_id)
+        console.table(out.table.rows)
+        const row = out.table.rows.slice(-1)
+        // if QC flag === 9: missing value
+        if (row[0][4] === 9) {
+          stationResponse[station_id]['isOn'] = 1
+        } else {
+          ODWaterLevel = row[0][3]
+          stationResponse[station_id]['ODWaterLevel'] = ODWaterLevel
+          // prevValue = out.table.rows.slice(-2)[0][3]
+          stationResponse[station_id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
+        }
+  
+      })
+      .catch(err => err)
+  })
+}
 
 const url = require('url');
+
+const interval = 300000
+// run load data on start
+loadData()
+
+function intervalFunc() {
+  console.log('Load data at 5 min interval');
+  loadData()
+}
+
+setInterval(intervalFunc, interval);
 
 const port = process.env.PORT || 3000,
   http = require("http"),
@@ -60,6 +77,9 @@ const port = process.env.PORT || 3000,
 
     console.log(stationResponse)
     console.log("Received an incoming request!!")
+
+
+
     response.writeHead(StatusCodes.OK, {
       "Content-Type": "text/html"
     })
