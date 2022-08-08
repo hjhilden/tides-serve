@@ -4,9 +4,6 @@ const fetch = require('node-fetch');
 // main data loading wrapped as function
 
 
-
-
-
 const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin%2CQC_Flag&time%3E='
 
 // response table 
@@ -16,7 +13,8 @@ const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalT
 
 // const response = await fetch('https://github.com/');
 // const body = await response.text();
-const stationResponse = {
+// placeholder stationResponse 
+let stationResponse = {
   'Galway Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_19' },
   'Wexford Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_25' },
   'Skerries Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_11' },
@@ -29,7 +27,7 @@ function loadData() {
   const today = new Date();
   today.setMinutes(-15)
   const todayString = today.toISOString()
-  
+  console.log(`load data starting at ${todayString}`)
   station_ids.forEach(station_id => {
     const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
   
@@ -54,20 +52,61 @@ function loadData() {
       })
       .catch(err => err)
   })
+  return
+}
+
+async function loadDataAsync() {
+  const stationResponse = {
+    'Galway Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_19' },
+    'Wexford Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_25' },
+    'Skerries Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_11' },
+    'Dublin Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_17' }
+  }
+  const station_ids = Object.keys(stationResponse)
+
+  const today = new Date();
+  today.setMinutes(-15)
+  const todayString = today.toISOString()
+  console.log(`async load data starting at ${todayString}`)
+
+  
+  station_ids.forEach(station_id => {
+    const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
+  
+    let ODWaterLevel = 0
+    console.log(todayString)
+    fetch(jsonUrl)
+      .then(res => res.json())
+      .then(out => {
+        console.log(station_id)
+        console.table(out.table.rows)
+        const row = out.table.rows.slice(-1)
+        // if QC flag === 9: missing value
+        if (row[0][4] === 9) {
+          stationResponse[station_id]['isOn'] = 1
+        } else {
+          ODWaterLevel = row[0][3]
+          stationResponse[station_id]['ODWaterLevel'] = ODWaterLevel
+          // prevValue = out.table.rows.slice(-2)[0][3]
+          stationResponse[station_id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
+        }
+      })
+      .catch(err => err)
+  })
+  await new Promise((resolve, reject) => setTimeout(resolve, 1000));
+
+  return stationResponse
 }
 
 const url = require('url');
 
 const interval = 300000
-// run load data on start
-loadData()
 
-function intervalFunc() {
+async function intervalFunc() {
   console.log('Load data at 5 min interval');
-  loadData()
+  stationResponse = await loadDataAsync()
+  // loadData()
 }
-
-setInterval(intervalFunc, interval);
 
 const port = process.env.PORT || 3000,
   http = require("http"),
@@ -115,6 +154,27 @@ const port = process.env.PORT || 3000,
 
   });
 
-app.listen(port)
-console.log(`The server has started and is listening on port number:
- ${port}`)
+  // run load data on start
+  (async () => {
+  stationResponse = await loadDataAsync()
+  //let data = response.json()
+  console.log(`response\n `)
+  console.log(stationResponse)
+  setInterval(intervalFunc, interval);
+  app.listen(port)
+  console.log(`The server has started and is listening on port number:
+   ${port}`)
+
+  })();
+  
+
+  // Promise.resolve(loadData).then(() => {
+  //   setInterval(intervalFunc, interval);
+  //   app.listen(port)
+  //   console.log(`The server has started and is listening on port number:
+  //    ${port}`)
+  // })
+
+// app.listen(port)
+// console.log(`The server has started and is listening on port number:
+//  ${port}`)
