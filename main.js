@@ -22,10 +22,10 @@ async function loadDataAsync() {
   // placeholder stationResponse 
 
   const stationResponse = {
-    'Galway Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_19' },
-    'Wexford Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_25' },
-    'Skerries Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_11' },
-    'Dublin Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_17' }
+    'Galway Port': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_19' },
+    'Wexford Harbour': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_25' },
+    'Skerries Harbour': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_11' },
+    'Dublin Port': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_17' }
   }
   const station_ids = Object.keys(stationResponse)
 
