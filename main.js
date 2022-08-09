@@ -3,10 +3,6 @@ const fetch = require('node-fetch');
 
 // main data loading wrapped as function
 
-
-
-
-
 const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.json?time%2Cstation_id%2Cdatasourceid%2CWater_Level_OD_Malin%2CQC_Flag&time%3E='
 
 // response table 
@@ -16,19 +12,30 @@ const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalT
 
 // const response = await fetch('https://github.com/');
 // const body = await response.text();
-const stationResponse = {
-  'Galway Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_19' },
-  'Wexford Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_25' },
-  'Skerries Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_11' },
-  'Dublin Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_17' }
-}
 
-const station_ids = Object.keys(stationResponse)
+const station_ids = ['Galway Port', 'Wexford Harbour', 'Skerries Harbour', 'Dublin Port']
 
-function loadData() {
+let stationResponse 
+
+
+async function loadDataAsync() {
+  // placeholder stationResponse 
+
+  const stationResponse = {
+    'Galway Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_19' },
+    'Wexford Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_25' },
+    'Skerries Harbour': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_11' },
+    'Dublin Port': { 'isOn': 0, 'ODWaterLevel': 0, 'url': 's-id_17' }
+  }
+  const station_ids = Object.keys(stationResponse)
+
+  const loadedStations = []
+
   const today = new Date();
   today.setMinutes(-15)
   const todayString = today.toISOString()
+  console.log(`async load data starting at ${todayString}`)
+
   
   station_ids.forEach(station_id => {
     const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
@@ -50,24 +57,54 @@ function loadData() {
           // prevValue = out.table.rows.slice(-2)[0][3]
           stationResponse[station_id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
         }
-  
+        loadedStations.push(station_id)
       })
       .catch(err => err)
   })
+  // try to load data max 5 times with 500ms interval
+  let promise = new Promise(function(resolve, reject) {
+    
+    let attempts = 0
+    const maxAttempts = 5
+
+    let timedLoadCheck = setInterval(()=>{
+      if (attempts< maxAttempts){
+        if (loadedStations.length===station_ids.length) {
+          console.log('successfully loaded stations')
+          clearInterval(timedLoadCheck)
+          return true
+        } 
+      } else {
+        if (loadedStations.length<station_ids.length){
+          console.log(`Loaded only ${loadedStations.length} of ${station_ids.length} stations`)
+          clearInterval(timedLoadCheck)
+          return true
+        }
+      }
+      attempts +=1
+    }, 500)
+
+    if(timedLoadCheck) {       
+      console.log('All stations loaded!')
+       resolve("All stations loaded!");
+  }
+    else{
+      reject(new Error('Missing data')); }
+    });
+
+  await promise
+  return stationResponse
 }
 
 const url = require('url');
 
 const interval = 300000
-// run load data on start
-loadData()
 
-function intervalFunc() {
+async function intervalFunc() {
   console.log('Load data at 5 min interval');
-  loadData()
+  stationResponse = await loadDataAsync()
+  // loadData()
 }
-
-setInterval(intervalFunc, interval);
 
 const port = process.env.PORT || 3000,
   http = require("http"),
@@ -94,17 +131,17 @@ const port = process.env.PORT || 3000,
     console.log(`Sent a response`);
 
     switch (pathname) {
-      case (`/${stationResponse['Dublin Port']['url']}`):
-        response.end(`${stationResponse['Dublin Port'].isOn}`)
+      case (`/${stationResponse[station_ids[0]]['url']}`):
+        response.end(`${stationResponse[station_ids[0]].isOn}`)
         break;
-      case (`/${stationResponse['Galway Port']['url']}`):
-        response.end(`${stationResponse['Galway Port'].isOn}`)
+      case (`/${stationResponse[station_ids[1]]['url']}`):
+        response.end(`${stationResponse[station_ids[1]].isOn}`)
         break;
-      case (`/${stationResponse['Skerries Harbour']['url']}`):
-        response.end(`${stationResponse['Skerries Harbour'].isOn}`)
+      case (`/${stationResponse[station_ids[2]]['url']}`):
+        response.end(`${stationResponse[station_ids[2]].isOn}`)
         break;
-      case (`/${stationResponse['Wexford Harbour']['url']}`):
-        response.end(`${stationResponse['Wexford Harbour'].isOn}`)
+      case (`/${stationResponse[station_ids[3]]['url']}`):
+        response.end(`${stationResponse[station_ids[3]].isOn}`)
         break
 
       default:
@@ -115,6 +152,16 @@ const port = process.env.PORT || 3000,
 
   });
 
-app.listen(port)
-console.log(`The server has started and is listening on port number:
- ${port}`)
+  // run load data on start
+  (async () => {
+  stationResponse = await loadDataAsync()
+  //let data = response.json()
+  console.log(`response\n `)
+  console.log(stationResponse)
+  setInterval(intervalFunc, interval);
+  app.listen(port)
+  console.log(`The server has started and is listening on port number:
+   ${port}`)
+
+  })();
+  
