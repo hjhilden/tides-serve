@@ -3,6 +3,7 @@ Read tides data from Irish tide gauge network on page load and analyze responses
 [https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.html](https://erddap.marine.ie/erddap/tabledap/IrishNationalTideGaugeNetwork.html)
 
 Stations return 0 if data is flagged as missing or if station feed is completely down.
+Loads data every 5 minutes. Will attempt data fetching 5 times with 500 ms interval for each run. 
 
 Extremely minimal app built on [this tutorial](https://freecontent.manning.com/building-a-simple-web-server-in-node-js/)
 
