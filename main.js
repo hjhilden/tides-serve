@@ -13,21 +13,23 @@ const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalT
 // const response = await fetch('https://github.com/');
 // const body = await response.text();
 
-const station_ids = ['Galway Port', 'Wexford Harbour', 'Skerries Harbour', 'Dublin Port']
+const station_ids = [
+  { 'id': 'Galway Port', 'url': 'id_19' },
+  { 'id': 'Wexford Harbour', 'url': 's-id_25' },
+  { 'id': 'Skerries Harbour', 'url': 's-id_11' },
+  { 'id': 'Dublin Port', 'url': 's-id_17' }
+]
 
-let stationResponse 
+const lastValidValue = {}
+
+
+let stationResponse
 
 
 async function loadDataAsync() {
   // placeholder stationResponse 
 
-  const stationResponse = {
-    'Galway Port': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_19' },
-    'Wexford Harbour': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_25' },
-    'Skerries Harbour': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_11' },
-    'Dublin Port': { 'isOn': 1, 'ODWaterLevel': 99, 'url': 's-id_17' }
-  }
-  const station_ids = Object.keys(stationResponse)
+  const stationResponse = {}
 
   const loadedStations = []
 
@@ -36,63 +38,97 @@ async function loadDataAsync() {
   const todayString = today.toISOString()
   console.log(`async load data starting at ${todayString}`)
 
-  
+
   station_ids.forEach(station_id => {
-    const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${station_id.replace(' ', '%20')}%22`
-  
+
+    let id = station_id.id
+
+    stationResponse[id] = { 'url': station_id.url }
+
+    const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${id.replace(' ', '%20')}%22`
+
     let ODWaterLevel = 0
+    let time
     console.log(todayString)
     fetch(jsonUrl)
       .then(res => res.json())
       .then(out => {
-        console.log(station_id)
+        console.log(id)
         console.table(out.table.rows)
-        const row = out.table.rows.slice(-1)
-        // if QC flag === 9: missing value
-        if (row[0][4] === 9) {
-          stationResponse[station_id]['isOn'] = 1
-        } else {
-          ODWaterLevel = row[0][3]
-          stationResponse[station_id]['ODWaterLevel'] = ODWaterLevel
-          // prevValue = out.table.rows.slice(-2)[0][3]
-          stationResponse[station_id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
+
+        // default to latest row
+        let row = out.table.rows.slice(-1)[0]
+
+        // if previous values have been recorded, 
+        // return the first row that is newer to handle uneven data delivery
+        if (lastValidValue[id]) {
+          let n = 0
+          while (new Date(out.table.rows[n][0]) < new Date(lastValidValue[id].time)) {
+            n += 1
+          }
+          row = out.table.rows[n - 1]
         }
-        loadedStations.push(station_id)
+
+        time = row[0]
+
+        // if QC flag === 9: missing value
+        if (row[4] === 9) {
+          stationResponse[id]['isOn'] = 1
+          stationResponse[id]['ODWaterLevel'] = 99
+        } else {
+          ODWaterLevel = row[3]
+          stationResponse[id]['ODWaterLevel'] = ODWaterLevel
+
+          if (lastValidValue[id] === undefined) {
+            lastValidValue[id] = { 'time': row[0], 'ODWaterLevel': ODWaterLevel }
+          }
+          if (new Date(time) > new Date(lastValidValue[id].time)) {
+            lastValidValue[id] = { 'time': row[0], 'ODWaterLevel': ODWaterLevel }
+
+          }
+          // determine whether to set on or off
+          stationResponse[id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
+        }
+        loadedStations.push(id)
+
       })
       .catch(err => err)
   })
   // try to load data max 5 times with 500ms interval
-  let promise = new Promise(function(resolve, reject) {
-    
+  let promise = new Promise(function (resolve, reject) {
+
     let attempts = 0
     const maxAttempts = 5
 
-    let timedLoadCheck = setInterval(()=>{
-      if (attempts< maxAttempts){
-        if (loadedStations.length===station_ids.length) {
+    let timedLoadCheck = setInterval(() => {
+      if (attempts < maxAttempts) {
+        if (loadedStations.length === station_ids.length) {
           console.log('successfully loaded stations')
           clearInterval(timedLoadCheck)
+          console.log(lastValidValue)
           return true
-        } 
+        }
       } else {
-        if (loadedStations.length<station_ids.length){
+        if (loadedStations.length < station_ids.length) {
           console.log(`Loaded only ${loadedStations.length} of ${station_ids.length} stations`)
           clearInterval(timedLoadCheck)
           return true
         }
       }
-      attempts +=1
+      attempts += 1
     }, 500)
 
-    if(timedLoadCheck) {       
+    if (timedLoadCheck) {
       console.log('All stations loaded!')
-       resolve("All stations loaded!");
-  }
-    else{
-      reject(new Error('Missing data')); }
-    });
+      resolve("All stations loaded!");
+    }
+    else {
+      reject(new Error('Missing data'));
+    }
+  });
 
   await promise
+
   return stationResponse
 }
 
@@ -114,7 +150,8 @@ const port = process.env.PORT || 3000,
 
     console.log(stationResponse)
     console.log("Received an incoming request!!")
-
+    console.log("last valid values")
+    console.log(lastValidValue)
 
 
     response.writeHead(StatusCodes.OK, {
@@ -124,24 +161,23 @@ const port = process.env.PORT || 3000,
 
     let responseMessage = "<h1>Hello, let me tell you about the tides!</h1>"
     station_ids.forEach(station_id => {
-      let station = stationResponse[station_id]
-      responseMessage += `<p>In <strong>${station_id}</strong> the water level is now ${station.ODWaterLevel} and the sensor listening on address <a href=/${station.url}>${station.url}</a> is receiving ${station.isOn}</p>`
-    } )
+      let station = stationResponse[station_id.id]
+      responseMessage += `<p>In <strong>${station_id.id}</strong> the water level is now ${station.ODWaterLevel} and the sensor listening on address <a href=/${station.url}>${station.url}</a> is receiving ${station.isOn}</p>`
+    })
 
     console.log(`Sent a response`);
-
     switch (pathname) {
-      case (`/${stationResponse[station_ids[0]]['url']}`):
-        response.end(`${stationResponse[station_ids[0]].isOn}`)
+      case (`/${stationResponse[station_ids[0].id]['url']}`):
+        response.end(`${stationResponse[station_ids[0].id].isOn}`)
         break;
-      case (`/${stationResponse[station_ids[1]]['url']}`):
-        response.end(`${stationResponse[station_ids[1]].isOn}`)
+      case (`/${stationResponse[station_ids[1].id]['url']}`):
+        response.end(`${stationResponse[station_ids[1].id].isOn}`)
         break;
-      case (`/${stationResponse[station_ids[2]]['url']}`):
-        response.end(`${stationResponse[station_ids[2]].isOn}`)
+      case (`/${stationResponse[station_ids[2].id]['url']}`):
+        response.end(`${stationResponse[station_ids[2].id].isOn}`)
         break;
-      case (`/${stationResponse[station_ids[3]]['url']}`):
-        response.end(`${stationResponse[station_ids[3]].isOn}`)
+      case (`/${stationResponse[station_ids[3].id]['url']}`):
+        response.end(`${stationResponse[station_ids[3].id].isOn}`)
         break
 
       default:
@@ -152,8 +188,8 @@ const port = process.env.PORT || 3000,
 
   });
 
-  // run load data on start
-  (async () => {
+// run load data on start
+(async () => {
   stationResponse = await loadDataAsync()
   //let data = response.json()
   console.log(`response\n `)
@@ -163,5 +199,4 @@ const port = process.env.PORT || 3000,
   console.log(`The server has started and is listening on port number:
    ${port}`)
 
-  })();
-  
+})();
