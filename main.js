@@ -14,7 +14,7 @@ const queryStringbase = 'https://erddap.marine.ie/erddap/tabledap/IrishNationalT
 // const body = await response.text();
 
 const station_ids = [
-  { 'id': 'Galway Port', 'url': 'id_19' },
+  { 'id': 'Galway Port', 'url': 's-id_19' },
   { 'id': 'Wexford Harbour', 'url': 's-id_25' },
   { 'id': 'Skerries Harbour', 'url': 's-id_11' },
   { 'id': 'Dublin Port', 'url': 's-id_17' }
@@ -33,10 +33,19 @@ async function loadDataAsync() {
 
   const loadedStations = []
 
-  const today = new Date();
-  today.setMinutes(-15)
-  const todayString = today.toISOString()
-  console.log(`async load data starting at ${todayString}`)
+  // because new data is not published in real time, we will load older data 
+  // and display data from 15 minutes ago
+
+  const startTime = new Date();
+  startTime.setMinutes(startTime.getMinutes()-60)
+
+  const startTimeString = startTime.toISOString()
+  
+  const displayedTime = new Date();
+  displayedTime.setMinutes(displayedTime.getMinutes()-25)
+
+  console.log(`async load data starting from ${startTime}\n
+  displayed time is ${displayedTime}`)
 
 
   station_ids.forEach(station_id => {
@@ -45,11 +54,11 @@ async function loadDataAsync() {
 
     stationResponse[id] = { 'url': station_id.url }
 
-    const jsonUrl = `${queryStringbase}${todayString}&station_id=%22${id.replace(' ', '%20')}%22`
+    const jsonUrl = `${queryStringbase}${startTimeString}&station_id=%22${id.replace(' ', '%20')}%22`
 
     let ODWaterLevel = 0
     let time
-    console.log(todayString)
+
     fetch(jsonUrl)
       .then(res => res.json())
       .then(out => {
@@ -61,13 +70,21 @@ async function loadDataAsync() {
 
         // if previous values have been recorded, 
         // return the first row that is newer to handle uneven data delivery
-        if (lastValidValue[id]) {
           let n = 0
-          while (new Date(out.table.rows[n][0]) < new Date(lastValidValue[id].time)) {
+          while (new Date(out.table.rows[n][0]) < displayedTime 
+          && n < out.table.rows.length-1) {
             n += 1
           }
-          row = out.table.rows[n - 1]
-        }
+          row = out.table.rows[n]
+
+        // if (lastValidValue[id]) {
+        //   let n = 0
+        //   while (new Date(out.table.rows[n][0]) < new Date(lastValidValue[id].time) 
+        //   && n < out.table.rows.length-2) {
+        //     n += 1
+        //   }
+        //   row = out.table.rows[n+1]
+        // }
 
         time = row[0]
 
@@ -90,7 +107,6 @@ async function loadDataAsync() {
           stationResponse[id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
         }
         loadedStations.push(id)
-
       })
       .catch(err => err)
   })
@@ -105,7 +121,10 @@ async function loadDataAsync() {
         if (loadedStations.length === station_ids.length) {
           console.log('successfully loaded stations')
           clearInterval(timedLoadCheck)
-          console.log(lastValidValue)
+          console.log('-------- previous valid response --------')
+          console.table(lastValidValue)
+          console.log('-------- current values --------')
+          console.table(stationResponse)
           return true
         }
       } else {
@@ -134,10 +153,10 @@ async function loadDataAsync() {
 
 const url = require('url');
 
-const interval = 300000
+const interval = 60000*1
 
 async function intervalFunc() {
-  console.log('Load data at 5 min interval');
+  console.log(`Load data at ${interval/60000} min interval`);
   stationResponse = await loadDataAsync()
   // loadData()
 }
@@ -148,10 +167,12 @@ const port = process.env.PORT || 3000,
     var pathname = url.parse(request.url).pathname
 
 
-    console.log(stationResponse)
-    console.log("Received an incoming request!!")
-    console.log("last valid values")
-    console.log(lastValidValue)
+    if (request.url != '/favicon.ico') {
+      console.log("Received an incoming request!!")
+      console.log(stationResponse)
+      console.log("last valid values")
+      console.log(lastValidValue)
+    }
 
 
     response.writeHead(StatusCodes.OK, {
@@ -190,6 +211,7 @@ const port = process.env.PORT || 3000,
 
 // run load data on start
 (async () => {
+  console.log(`started at ${new Date()}`)
   stationResponse = await loadDataAsync()
   //let data = response.json()
   console.log(`response\n `)
