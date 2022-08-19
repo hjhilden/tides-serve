@@ -22,6 +22,9 @@ const station_ids = [
 
 const lastValidValue = {}
 
+// set of or on based on water level
+
+const setState = (waterLevel) => {return waterLevel > 0 ? 1 : 0}
 
 let stationResponse
 
@@ -56,15 +59,15 @@ async function loadDataAsync() {
 
     const jsonUrl = `${queryStringbase}${startTimeString}&station_id=%22${id.replace(' ', '%20')}%22`
 
-    let ODWaterLevel = 0
+    let ODWaterLevel = 1
     let time
+    let isValid = false
 
     fetch(jsonUrl)
       .then(res => res.json())
       .then(out => {
         console.log(id)
         console.table(out.table.rows)
-
         // default to latest row
         let row = out.table.rows.slice(-1)[0]
 
@@ -88,27 +91,45 @@ async function loadDataAsync() {
 
         time = row[0]
 
+        // todo catch error
+        ODWaterLevel = Number(row[3])
         // if QC flag === 9: missing value
-        if (row[4] === 9) {
-          stationResponse[id]['isOn'] = 1
-          stationResponse[id]['ODWaterLevel'] = 99
-        } else {
-          ODWaterLevel = row[3]
-          stationResponse[id]['ODWaterLevel'] = ODWaterLevel
 
+        if (row[4] === 9) {
+            // TODO check number of faulty responses
+          if (lastValidValue[id]) {
+            ODWaterLevel = lastValidValue[id].ODWaterLevel
+          }
+
+        } else {
+          isValid = true
           if (lastValidValue[id] === undefined) {
-            lastValidValue[id] = { 'time': row[0], 'ODWaterLevel': ODWaterLevel }
+            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel }
           }
           if (new Date(time) > new Date(lastValidValue[id].time)) {
-            lastValidValue[id] = { 'time': row[0], 'ODWaterLevel': ODWaterLevel }
-
+            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel }
           }
-          // determine whether to set on or off
-          stationResponse[id]['isOn'] = ODWaterLevel > 0 ? 1 : 0
         }
+        stationResponse[id]['time'] = time
+        stationResponse[id]['ODWaterLevel'] = ODWaterLevel
+        // determine whether to set on or off
+        stationResponse[id]['isOn'] = setState(ODWaterLevel)
+        stationResponse[id]['isValid'] = isValid
+
         loadedStations.push(id)
       })
-      .catch(err => err)
+      .catch(err => {
+        console.log(err)
+        if (lastValidValue[id]) {
+          ODWaterLevel = lastValidValue[id].ODWaterLevel
+        } else {ODWaterLevel = 99}
+        stationResponse[id]['isOn'] = setState(ODWaterLevel)
+        stationResponse[id]['ODWaterLevel'] = ODWaterLevel
+        stationResponse[id]['isValid'] = isValid
+        stationResponse[id]['time'] = displayedTime
+
+
+      })
   })
   // try to load data max 5 times with 500ms interval
   let promise = new Promise(function (resolve, reject) {
