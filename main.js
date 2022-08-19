@@ -153,7 +153,7 @@ async function loadDataAsync() {
 
 const url = require('url');
 
-const interval = 60000*1
+const interval = 60000*5
 
 async function intervalFunc() {
   console.log(`Load data at ${interval/60000} min interval`);
