@@ -22,6 +22,9 @@ const station_ids = [
 
 const lastValidValue = {}
 
+// reuse previous value for N updates in case of invalid / missing data
+const resetValidCounter = 30
+
 // set of or on based on water level
 
 const setState = (waterLevel) => {return waterLevel > 0 ? 1 : 0}
@@ -91,23 +94,22 @@ async function loadDataAsync() {
 
         time = row[0]
 
-        // todo catch error
         ODWaterLevel = Number(row[3])
-        // if QC flag === 9: missing value
 
+        // if QC flag === 9: missing value
         if (row[4] === 9) {
-            // TODO check number of faulty responses
           if (lastValidValue[id]) {
             ODWaterLevel = lastValidValue[id].ODWaterLevel
+            lastValidValue[id].remainingCount -=1
           }
 
         } else {
           isValid = true
           if (lastValidValue[id] === undefined) {
-            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel }
+            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel, 'remainingCount': resetValidCounter }
           }
           if (new Date(time) > new Date(lastValidValue[id].time)) {
-            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel }
+            lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel, 'remainingCount': resetValidCounter }
           }
         }
         stationResponse[id]['time'] = time
@@ -120,15 +122,14 @@ async function loadDataAsync() {
       })
       .catch(err => {
         console.log(err)
-        if (lastValidValue[id]) {
+        if(lastValidValue[id] && lastValidValue[id].remainingCount && lastValidValue[id].remainingCount>0) {
           ODWaterLevel = lastValidValue[id].ODWaterLevel
+          lastValidValue[id].remainingCount -=1
         } else {ODWaterLevel = 99}
         stationResponse[id]['isOn'] = setState(ODWaterLevel)
         stationResponse[id]['ODWaterLevel'] = ODWaterLevel
         stationResponse[id]['isValid'] = isValid
-        stationResponse[id]['time'] = displayedTime
-
-
+        stationResponse[id]['time'] = displayedTime.toISOString()
       })
   })
   // try to load data max 5 times with 500ms interval
