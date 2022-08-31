@@ -205,7 +205,7 @@ const port = process.env.PORT || 3000,
     let responseMessage = "<h1>Hello, let me tell you about the tides!</h1>"
     station_ids.forEach(station_id => {
       let station = stationResponse[station_id.id]
-      responseMessage += `<p>In <strong>${station_id.id}</strong> the water level is now ${station.ODWaterLevel} and the sensor listening on address <a href=/${station.url}>${station.url}</a> is receiving ${station.isOn}</p>`
+      responseMessage += `<p>In <strong>${station_id.id}</strong> the water level is now ${station.ODWaterLevel} and the sensor listening on address <a href=/${station.url}>${station.url}</a> is receiving ${station.isOn}. The timestamp is ${station.time}</p>`
     })
 
     console.log(`Sent a response`);
