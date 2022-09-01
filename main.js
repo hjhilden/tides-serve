@@ -25,9 +25,53 @@ const lastValidValue = {}
 // reuse previous value for N updates in case of invalid / missing data
 const resetValidCounter = 30
 
-// set of or on based on water level
+// general set OFF or ON based on water level
 
 const setState = (waterLevel) => {return waterLevel > 0 ? 1 : 0}
+
+
+// average output values 
+
+const averageArray = (array) =>{
+  const initialValue = 0;
+  const sumWithInitial = array.reduce(
+(previousValue, currentValue) => previousValue + currentValue,
+initialValue
+);
+
+const avg =  +(sumWithInitial/array.length).toFixed(0)
+return avg
+}
+
+// select a column from returned table
+const extractColumn = (array, col=3) => {
+  return array.map(d=>{return d[col]})
+}
+
+// fill in values with previous if max difference is exceeded
+const checkArray = (array) =>{
+  let prev = array[0]
+  const outputs = []
+  for (let index = 1; index < array.length; index++) {
+          let current = array[index]
+              
+      if (Math.abs(prev-current)>maxDiff) {
+            current = prev
+          } else { prev = current }
+      
+  outputs.push(setState(current))
+  }
+  return outputs
+ 
+}
+
+
+
+
+// maximum accepted difference between current and previous value
+const maxDiff = 0.9
+// 
+const windowWidth = 4
 
 let stationResponse
 
@@ -73,6 +117,7 @@ async function loadDataAsync() {
         console.table(out.table.rows)
         // default to latest row
         let row = out.table.rows.slice(-1)[0]
+        
 
         // if previous values have been recorded, 
         // return the first row that is newer to handle uneven data delivery
@@ -83,20 +128,16 @@ async function loadDataAsync() {
           }
           row = out.table.rows[n]
 
-        // if (lastValidValue[id]) {
-        //   let n = 0
-        //   while (new Date(out.table.rows[n][0]) < new Date(lastValidValue[id].time) 
-        //   && n < out.table.rows.length-2) {
-        //     n += 1
-        //   }
-        //   row = out.table.rows[n+1]
-        // }
+          // get previous values based on moving window and average
+          let previous = extractColumn(out.table.rows.slice(n-windowWidth, n))
+
+          let stateAverage = averageArray(checkArray(previous))
 
         time = row[0]
 
         ODWaterLevel = Number(row[3])
 
-        // if QC flag === 9: missing value
+        // if QC flag === 9: missing value (seems to not be used)
         if (row[4] === 9) {
           if (lastValidValue[id]) {
             ODWaterLevel = lastValidValue[id].ODWaterLevel
@@ -112,13 +153,20 @@ async function loadDataAsync() {
             lastValidValue[id] = { 'time': time, 'ODWaterLevel': ODWaterLevel, 'remainingCount': resetValidCounter }
           }
         }
+        const stateValue = setState(ODWaterLevel)
+
         stationResponse[id]['time'] = time
         stationResponse[id]['ODWaterLevel'] = ODWaterLevel
+        
         // determine whether to set on or off
-        stationResponse[id]['isOn'] = setState(ODWaterLevel)
+        stationResponse[id]['isOn'] = stateAverage
+
         stationResponse[id]['isValid'] = isValid
 
         loadedStations.push(id)
+
+        console.log(`time: ${time} isOn: ${stateValue} average isOn:${stateAverage}\n`)
+
       })
       .catch(err => {
         console.log(err)
